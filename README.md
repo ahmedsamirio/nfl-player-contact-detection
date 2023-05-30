@@ -4,6 +4,6 @@ This repo contains my solution for the NFL 1st and Future - Player Contact Detec
 
 ![sample](https://github.com/ahmedsamirio/nfl-player-contact-detection/blob/main/ezgif.com-optimize.gif)
 
-<img src="https://github.com/ahmedsamirio/nfl-player-contact-detection/blob/main/data/output/ezgif.com-optimize (1).gif" width="1280" height="720"/>
+<img src="https://github.com/ahmedsamirio/nfl-player-contact-detection/blob/main/data/output/ezgif.com-optimize (1).gif" width="1280" height="360"/>
 
 
