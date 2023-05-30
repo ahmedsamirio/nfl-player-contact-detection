@@ -104,7 +104,10 @@ def get_img(row, img_size=128, add_helmets=True, axis=0):
         return np.stack(frames, axis=-1)
 
 
-def get_frames_df(df_combo, kf_dict, split, frames_path, window=3, window_step=2, sample_every_n_frame=None, sample_train=None, sample_val=None, undersample_no_contact=False, filter_views=None, train_fmt='jpg', valid_fmt='jpg', seed=42):
+def get_frames_df(df_combo, kf_dict, split, frames_path, offset=0, sample_every_n_frame=None, sample_every_n_frame_train=None, sample_every_n_frame_val=None, sample_train=None, sample_val=None, undersample_no_contact=False, filter_views=None, seed=42):
+    
+    set_seed(seed, True)
+    
     train_game_plays = kf_dict[split]['train_games']
     val_game_plays = kf_dict[split]['val_games']
     
@@ -115,8 +118,14 @@ def get_frames_df(df_combo, kf_dict, split, frames_path, window=3, window_step=2
     val_combo['is_valid'] = True
     
     if sample_every_n_frame is not None:
-        train_combo = train_combo.query('(290 - frame) % @sample_every_n_frame == 0')
+        train_combo = train_combo.query('(290 - frame - @offset) % @sample_every_n_frame == 0')
         val_combo = val_combo.query('(290 - frame) % @sample_every_n_frame == 0')
+        
+    if sample_every_n_frame_train is not None:
+        train_combo = train_combo.query('(290 - frame -@offset) % @sample_every_n_frame_train == 0')
+        
+    if sample_every_n_frame_val is not None:
+        val_combo = val_combo.query('(290 - frame) % @sample_every_n_frame_val == 0')
     
     if sample_train is not None:
         train_combo = train_combo.sample(frac=sample_train, random_state=seed)
@@ -131,19 +140,28 @@ def get_frames_df(df_combo, kf_dict, split, frames_path, window=3, window_step=2
                 len(train_combo.query('contact == 1')), random_state=seed
             )
         ])
-        
-    train_combo.frame = train_combo.frame.astype('int')
-    val_combo.frame = val_combo.frame.astype('int')
-        
-    train_combo['path'] = train_combo.apply(lambda x: get_frame_path(x, frames_path, window, window_step, fmt=train_fmt), axis=1)
-    val_combo['path'] = val_combo.apply(lambda x: get_frame_path(x, frames_path, window, window_step, fmt=valid_fmt), axis=1)
-    
+
     frames_df = pd.concat([train_combo, val_combo], axis=0)
+    frames_df.frame = frames_df.frame.astype('int') 
     
     if filter_views is not None:
         frames_df = frames_df.query('view in @filter_views')
-            
+        
+    # frames_df['path'] = frames_df.apply(lambda x: get_frame_path(x, frames_path), axis=1)
+        
     return frames_df
+
+def get_interpolated_player_helmets(helmets_df, player_helmets_df, tr_helmets, player_id):
+    player_helmets = pd.DataFrame()
+    tmp_frames_df = pd.DataFrame({'frame': np.arange(player_helmets_df.frame.min(), tr_helmets.frame.max()+1)})
+
+    for view in helmets_df.view.unique():
+        player_helmets_view = helmets_df.query('nfl_player_id == @player_id and view == @view')
+        player_helmets_view = pd.merge(tmp_frames_df, player_helmets_view[['frame', 'left', 'width', 'top', 'height']], how='left', on='frame').interpolate(limit_direction='both')
+        player_helmets_view['view'] = view
+        player_helmets = pd.concat([player_helmets, player_helmets_view], axis=0)
+        
+    return player_helmets
 
 
 def get_3d_dls(frames_df, img_size=128, item_tfms=None, batch_tfms=None, bs=64, shuffle=True, drop_last=False):
