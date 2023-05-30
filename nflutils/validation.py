@@ -8,33 +8,34 @@ from sklearn.metrics import matthews_corrcoef
 from tqdm.notebook import tqdm
 
 
-def smooth_predictions(val_df, w, center):
+def smooth_predictions(val_df, center, ws):
     val_df_new = pd.DataFrame()
     for group, group_df in tqdm(val_df.groupby(['game_play', 'nfl_player_id_1', 'nfl_player_id_2', 'view'])):
-        group_df['contact_pred_rolling'] = group_df.contact_pred.rolling(w, center=center).mean().bfill().ffill().fillna(0)
-        # group_df['contact_pred_rolling'] = np.where(group_df.contact_pred_rolling.isna(), group_df.contact_pred, group_df.contact_pred_rolling)
+        group_df = group_df.sort_values('frame')
+        for w in ws: 
+            group_df[f'contact_pred_rolling_{w}'] = group_df.contact_pred.rolling(w, center=center).mean().bfill().ffill().fillna(0)
         val_df_new = pd.concat([val_df_new, group_df])
     return val_df_new
-
-
-def get_matthews_corrcoef(val_dist_agg, pred_col='contact_pred_rolling'):
-    out = np.where(val_dist_agg['contact_pred'].isna(),
-                   val_dist_agg['distance'] <= 1, 
-                   val_dist_agg[pred_col] > 0.5).astype(int)
-    
-    return matthews_corrcoef(val_dist_agg['contact'], out)
-
 
 def merge_combo_val(df_combo, val_df, pred_col='contact_pred_rolling'):
     val_dist = df_combo[df_combo.game_play.isin(val_df.game_play.unique())].copy()
 
     val_dist["distance"] = val_dist["distance"].fillna(99)  # Fill player to ground with 9    
     val_dist_agg = val_dist.merge(val_df.groupby('contact_id', as_index=False)[pred_col].mean(), how='left', on='contact_id')
+    val_dist_agg = val_dist_agg.merge(val_df.groupby('contact_id', as_index=False)['thresh'].first(), how='left', on='contact_id')
     
     if pred_col != 'contact_pred':
         val_dist_agg = val_dist_agg.merge(val_df.groupby('contact_id', as_index=False)['contact_pred'].mean(), how='left', on='contact_id')
-    
+        
     return val_dist_agg
+
+def get_matthews_corrcoef(val_dist_agg, pred_col='contact_pred_rolling'):
+    out = np.where(val_dist_agg['contact_pred'].isna(),
+                   val_dist_agg['distance'] <= 1, 
+                   val_dist_agg[pred_col] > val_dist_agg['thresh']).astype(int)
+    
+    return matthews_corrcoef(val_dist_agg['contact'], out)
+
 
 
 def find_best_window(df_combo, val_df, w_min, w_max):

@@ -28,7 +28,7 @@ import argparse
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Your script description')
+    parser = argparse.ArgumentParser(description='Training script for player contact detection model')
     parser.add_argument('--model', help='Model', type=str, default='convnext_tiny')
     parser.add_argument('--name', help='Experiment name', type=str)
     parser.add_argument('--fold', help='KFold', type=int, default=0)
