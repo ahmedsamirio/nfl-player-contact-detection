@@ -4,4 +4,7 @@ This repo contains my solution for the NFL 1st and Future - Player Contact Detec
 
 <img src="https://github.com/ahmedsamirio/nfl-player-contact-detection/blob/main/data/output/ezgif.com-optimize (1).gif" width="1280" height="280"/>
 
+The pipeline for contatcct deteciton is decoupled into two separate pipelines:
+1. A object detection and tracking pipeline for tracking players
+2. A contact detection pipeline for detecting player-player contact and player-ground contact
 
