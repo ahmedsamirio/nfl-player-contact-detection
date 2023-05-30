@@ -8,3 +8,8 @@ The pipeline for contatcct deteciton is decoupled into two separate pipelines:
 1. A object detection and tracking pipeline for tracking players
 2. A contact detection pipeline for detecting player-player contact and player-ground contact
 
+
+This repo includes the second part of the pipeline which depends on the output of the first part consisting of
+1. Player helmets bounding boxes (the output of the first pipeline)
+2. Player tracking data (recorded using sensors)
+
