@@ -22,11 +22,14 @@ from nflutils.training import *
 from nflutils.dataprep import *
 from nflutils.validation import *
 
+import torch
+
 import argparse
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Your script description')
+    parser.add_argument('--model', help='Model', type=str, default='convnext_tiny')
     parser.add_argument('--name', help='Experiment name', type=str)
     parser.add_argument('--fold', help='KFold', type=int, default=0)
     parser.add_argument('--seed', help='Seed', type=int, default=42)
@@ -37,14 +40,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Accessing the argument values
+    model = args.model
     name = args.name
     fold = args.fold
     seed = args.seed
     type = args.type
     log_wandb = args.log_wandb
     wandb_group = args.wandb_group
+    BASE_DIR = Path("data")
+    frames_path = 'frames/content/work/frames/train'
+    utils_path = 'nflutils'
 
-    df_combo_with_helmets = pd.read_parquet('data/df_tracking_helmets_below_thresh.parquet')
+    df_combo_with_helmets = pd.read_parquet(BASE_DIR+'/processed/df_tracking_helmets_below_thresh.parquet')
     df_combo_with_helmets['G_flag'] = np.where(df_combo_with_helmets.nfl_player_id_2 == 'G', 1, 0)
     kf_dict = pickle.load(open('kf_dict', 'rb'))
 
@@ -78,7 +85,7 @@ if __name__ == "__main__":
 
     data = get_dls(df, kf_dict, fold, train_transform, val_transform, frames_kwargs=frames_kwargs, dl=NFLFrameTrackingDataset, bs=64)
 
-    model = FrameTrackingModel('convnext_tiny')
+    model = FrameTrackingModel(model)
     learn = Learner(data, model, CrossEntropyLossFlat(),
                     metrics=[accuracy, MatthewsCorrCoef(), Recall(), Precision(), F1Score()],
                     cbs=[

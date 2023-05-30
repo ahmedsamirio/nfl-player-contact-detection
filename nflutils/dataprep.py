@@ -70,6 +70,43 @@ def expand_contact_id(df):
     df["nfl_player_id_2"] = df["contact_id"].str.split("_").str[-1]
     return df
 
+def create_features(df, tr_tracking, merge_col="datetime", use_cols=["x_position", "y_position", "speed", "distance", "direction","orientation", "acceleration", "sa"]):
+    """
+    Merges tracking data on player1 and 2 and computes the distance.
+    """
+    get_new_cols = lambda i, cols: {col: f'{col}_{i}' for col in cols}
+    
+    df_combo = (
+        df.astype({"nfl_player_id_1": "str"})
+        .merge(
+            tr_tracking.astype({"nfl_player_id": "str"})[
+                ["game_play", merge_col, "nfl_player_id"] + use_cols
+            ],
+            left_on=["game_play", merge_col, "nfl_player_id_1"],
+            right_on=["game_play", merge_col, "nfl_player_id"],
+            how="left",
+        )
+        .rename(columns=get_new_cols(1, use_cols))
+        .drop("nfl_player_id", axis=1)
+        .merge(
+            tr_tracking.astype({"nfl_player_id": "str"})[
+                ["game_play", merge_col, "nfl_player_id"] + use_cols
+            ],
+            left_on=["game_play", merge_col, "nfl_player_id_2"],
+            right_on=["game_play", merge_col, "nfl_player_id"],
+            how="left",
+        )
+        .drop("nfl_player_id", axis=1)
+        .rename(columns=get_new_cols(2, use_cols))
+        .copy()
+    )
+
+    df_combo["distance"] = np.sqrt(
+        np.square(df_combo["x_position_1"] - df_combo["x_position_2"])
+        + np.square(df_combo["y_position_1"] - df_combo["y_position_2"])
+    )
+    return df_combo
+
 def merge_tracking_and_helmets(tracking_df, helmets_df):
     # Create a dict that maps frames to steps in order to merge tracking data with helmets data
     frame_step_map = {}
@@ -113,6 +150,8 @@ def merge_tracking_and_helmets(tracking_df, helmets_df):
     )
 
 def merge_tracking_and_helmets_ts(tracking_df, helmets_df, meta_df, game_play, view, fps=59.94):
+    get_new_cols = lambda i, cols: {col: f'{col}_{i}' for col in cols}
+    
     gp_track = tracking_df.query('game_play == @game_play').copy()
     gp_helms = helmets_df.query('game_play == @game_play and view == @view').copy()
     
@@ -191,6 +230,43 @@ def calc_two_players_helmets_center(df_combo):
                                     df_combo.center_y)
     
     return df_combo
+
+
+def join_helmets_contact(game_play, labels, helmets, meta, view="Sideline", fps=59.94):
+    """
+    Joins helmets and labels for a given game_play. Results can be used for visualizing labels.
+    Returns a dataframe with the joint dataframe, duplicating rows if multiple contacts occur.
+    """
+    gp_labs = labels.query("game_play == @game_play").copy()
+    gp_helms = helmets.query("game_play == @game_play").copy()
+
+    start_time = meta.query("game_play == @game_play and view == @view")[
+        "start_time"
+    ].values[0]
+
+    gp_helms["datetime"] = (
+        pd.to_timedelta(gp_helms["frame"] * (1 / fps), unit="s") + start_time
+    )
+    gp_helms["datetime"] = pd.to_datetime(gp_helms["datetime"], utc=True)
+    gp_helms["datetime_ngs"] = (
+        pd.DatetimeIndex(gp_helms["datetime"] + pd.to_timedelta(50, "ms"))
+        .floor("100ms")
+        .values
+    )
+    gp_helms["datetime_ngs"] = pd.to_datetime(gp_helms["datetime_ngs"], utc=True)
+
+    gp_labs["datetime_ngs"] = pd.to_datetime(gp_labs["datetime"], utc=True)
+    gp_labs["nfl_player_id_1"] = gp_labs["nfl_player_id_1"].astype('int')
+
+    gp = gp_helms.merge(
+        gp_labs.query("contact == 1")[
+            ["datetime_ngs", "nfl_player_id_1", "nfl_player_id_2", "contact_id"]
+        ],
+        left_on=["datetime_ngs", "nfl_player_id"],
+        right_on=["datetime_ngs", "nfl_player_id_1"],
+        how="left",
+    )
+    return gp
 
 
 
