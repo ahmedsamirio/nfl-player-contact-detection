@@ -32,8 +32,8 @@ In this competition, I approached the problem as a binary classification task, w
 
 ## The repository is organized as follows:
 
-`nflutils/`: Contains a utility package created for data exploration, preprocessing, model development, and evaluation steps
-`data/`: Contains the necessary data files for training and testing.
-`notebooks/`: Jupyter notebooks containing the data exploration, preprocessing, model development, and evaluation steps.
-`models/`: Saved model checkpoints and trained weights for the final models.
-`README.md`: This file, providing an overview of the competition, solution, and repository structure.
+1. `nflutils/`: Contains a utility package created for data exploration, preprocessing, model development, and evaluation steps
+2. `data/`: Contains the necessary data files for training and testing.
+3. `notebooks/`: Jupyter notebooks containing the data exploration, preprocessing, model development, and evaluation steps.
+4. `models/`: Saved model checkpoints and trained weights for the final models.
+5. `README.md`: This file, providing an overview of the competition, solution, and repository structure.
