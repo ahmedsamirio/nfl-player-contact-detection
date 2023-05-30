@@ -99,4 +99,22 @@ if __name__ == "__main__":
     
 
     learn.fit_one_cycle(10, 1e-3)
-    torch.save(learn.model, f'nflutils/{name}.pkl')
+    torch.save(learn.model, f'models/{name}.pkl')
+
+    val_games = kf_dict[fold]['val_games']
+
+    val_df = df_combo_with_helmets.query('game_play in @val_games').copy()
+    val_df = val_df[(val_df.left_2.notnull())].copy()
+    val_df['frame'] = val_df['frame'].astype(int)
+
+    test_ds = NFLFrameTrackingDataset(val_df, transform=val_transform, crop_size=256)
+
+    test_loader = DataLoader(
+        test_ds, batch_size=64, shuffle=False, num_workers=8, pin_memory=True,
+    )
+
+    preds, _ = learn.get_preds(dl=test_loader)
+
+    val_df['contact_pred'] = preds[:, 1]
+
+    val_df.to_parquet(BASE_DIR+f'/validation/{name}.parquet', index=False)
